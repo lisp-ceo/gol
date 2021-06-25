@@ -1,7 +1,10 @@
 mod utils;
 
+extern crate js_sys;
+
 use wasm_bindgen::prelude::*;
 use std::fmt;
+use std::ops::Deref;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -19,11 +22,40 @@ pub enum Cell {
     Alive = 1,
 }
 
+struct Cells (Vec<Cell>);
+
+impl Cells {
+    fn new(width: u32, height: u32) -> Cells {
+        let v = (0..width * height)
+            .map(|i| {
+                if js_sys::Math::random() < 0.5 {
+                    Cell::Alive
+                } else {
+                    Cell::Dead
+                }
+            })
+            .collect::<Vec<Cell>>();
+        Cells(v)
+    }
+}
+
+// Implementing Deref to expose methods of alias
+// https://doc.rust-lang.org/book/ch15-02-deref.html#treating-smart-pointers-like-regular-references-with-the-deref-trait
+impl Deref for Cells {
+
+    type Target = Vec<Cell>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+
 #[wasm_bindgen]
 pub struct Universe {
     width: u32,
     height: u32,
-    cells: Vec<Cell>,
+    cells: Cells,
 }
 
 
@@ -35,15 +67,7 @@ impl Universe {
         let width = 64;
         let height = 64;
 
-        let cells = (0..width * height)
-            .map(|i| {
-                if i % 2 == 0 || i % 7 == 0 {
-                    Cell::Alive
-                } else {
-                    Cell::Dead
-                }
-            })
-            .collect();
+        let cells = Cells::new(width, height);
 
         Universe{
             height,
@@ -123,23 +147,12 @@ impl Universe {
             }
         }
 
-        if self.cells == next {
-          let width = 64;
-          let height = 64;
-
-          self.cells = (0..width * height)
-            .map(|i| {
-                if i % 2 == 0 || i % 7 == 0 {
-                    Cell::Alive
-                } else {
-                    Cell::Dead
-                }
-            })
-            .collect();
+        // Fork required to prevent use after borrow
+        if (*self.cells.deref()) == next {
+            self.cells = Cells::new(self.width, self.height);
         } else {
-            self.cells = next;
+            self.cells.0 = next;
         }
-
     }
 }
 
