@@ -57,6 +57,22 @@ impl Universe {
         self.to_string()
     }
 
+    //  Width of universe.
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+
+    // Height of universe.
+    pub fn height(&self) -> u32 {
+        self.height
+    }
+
+    // Pointer to cells
+    pub fn cells(&self) -> *const Cell {
+        self.cells.as_ptr()
+    }
+
+
     // Map linear array vector indices to 2D array.
     fn get_index(&self, row: u32, column: u32) -> usize {
         (row * self.width + column) as usize
