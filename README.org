@@ -1,9 +1,0 @@
-#+TITLE: README
-
-* Dependencies
-
-- wasm-pack
-- cargo-generate
-- npm
-- wasm32-unknown-unknown toolchain (`rustup target add wasm32-unknown-unknown`)
--
