@@ -1,6 +1,8 @@
 mod utils;
 
 extern crate js_sys;
+extern crate derive_more;
+use derive_more::{DerefMut};
 
 use wasm_bindgen::prelude::*;
 use std::fmt;
@@ -22,12 +24,19 @@ pub enum Cell {
     Alive = 1,
 }
 
+#[derive(DerefMut)]
 struct Cells (Vec<Cell>);
 
 impl Cells {
     fn new(width: u32, height: u32) -> Cells {
         let v = (0..width * height)
-            .map(|i| {
+            .map(|_| { Cell::Dead })
+            .collect::<Vec<Cell>>();
+        Cells(v)
+    }
+    fn new_random(width: u32, height: u32) -> Cells {
+        let v = (0..width * height)
+            .map(|_| {
                 if js_sys::Math::random() < 0.5 {
                     Cell::Alive
                 } else {
@@ -58,7 +67,7 @@ pub struct Universe {
     cells: Cells,
 }
 
-
+// Methods generating wasm functions
 #[wasm_bindgen]
 impl Universe {
 
@@ -91,9 +100,21 @@ impl Universe {
         self.height
     }
 
-    // Pointer to cells
+    // Pointer to cells.
     pub fn cells(&self) -> *const Cell {
         self.cells.as_ptr()
+    }
+
+    // Sets the width of the universe.
+    pub fn set_width(&mut self, width: u32) {
+        self.width = width;
+        self.cells = Cells::new(width, self.height);
+    }
+
+    // Sets the height of the universe.
+    pub fn set_height(&mut self, height: u32) {
+        self.height = height;
+        self.cells = Cells::new(self.width, height);
     }
 
 
@@ -107,7 +128,7 @@ impl Universe {
         let mut count = 0;
         for curr_row in [self.height - 1, 0, 1].iter().cloned() {
             for curr_col in [self.width - 1, 0, 1].iter().cloned() {
-                if row == 0 && column == 0 {
+                if curr_row == 0 && curr_col == 0 {
                     continue;
                 }
 
@@ -149,9 +170,25 @@ impl Universe {
 
         // Fork required to prevent use after borrow
         if (*self.cells.deref()) == next {
-            self.cells = Cells::new(self.width, self.height);
+            self.cells = Cells::new_random(self.width, self.height);
         } else {
             self.cells.0 = next;
+        }
+    }
+}
+
+// Methods *not* generating wasm methods. Used to return borrowed references.
+impl Universe {
+   // Get the dead and alive values of the entire universe
+    pub fn get_cells(&self) -> &[Cell] {
+        &self.cells
+    }
+
+    // Set cells to be alive in a universe by passing the row and column of each cell as an array
+    pub fn set_cells(&mut self, cells: &[(u32, u32)]) {
+        for (row, col) in cells.iter().cloned() {
+            let idx = self.get_index(row, col);
+            self.cells[idx] = Cell::Alive;
         }
     }
 }
