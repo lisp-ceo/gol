@@ -1,8 +1,17 @@
 mod utils;
 
 extern crate js_sys;
+extern crate web_sys;
+
+// Macro to provide println!(..)-style syntax for logging to the javascript console.
+macro_rules! log {
+    ( $( $t:tt  )* ) => {
+        web_sys::console::log_1(&format!( $( $t )* ).into());
+    }
+}
+
 extern crate derive_more;
-use derive_more::{DerefMut};
+use derive_more::{DerefMut,Display};
 
 use wasm_bindgen::prelude::*;
 use std::fmt;
@@ -18,7 +27,7 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 #[wasm_bindgen]
 // Restrict each enum value to a byte for linear webassembly data allocation
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Display)]
 pub enum Cell {
     Dead = 0,
     Alive = 1,
@@ -28,12 +37,16 @@ pub enum Cell {
 struct Cells (Vec<Cell>);
 
 impl Cells {
+
+    // Constructs a new vector of dead ( uWu ) cells.
     fn new(width: u32, height: u32) -> Cells {
         let v = (0..width * height)
             .map(|_| { Cell::Dead })
             .collect::<Vec<Cell>>();
         Cells(v)
     }
+
+    // Constructs a new vector of cells that might be alive or dead.
     fn new_random(width: u32, height: u32) -> Cells {
         let v = (0..width * height)
             .map(|_| {
@@ -73,6 +86,7 @@ impl Universe {
 
     // Construct a new Universe.
     pub fn new() -> Universe {
+        utils::set_panic_hook();
         let width = 64;
         let height = 64;
 
@@ -151,6 +165,14 @@ impl Universe {
                 let cell = self.cells[idx];
                 let live_neighbours = self.live_neighbour_count(row, col);
 
+                log!(
+                    "cell[{}, {}] is initially {:?} and has {} live neighbours",
+                    row,
+                    col,
+                    cell,
+                    live_neighbours
+                );
+
                 let next_cell = match (cell, live_neighbours) {
                     // Any live cell with fewer than 2 live neighours dies from underpopulation
                     (Cell::Alive, x) if x < 2 => Cell::Dead,
@@ -163,6 +185,11 @@ impl Universe {
                     // All others retain previous state
                     (otherwise, _) => otherwise,
                 };
+
+                log!(
+                    "cell is now {}",
+                    next_cell,
+                );
 
                 next[idx] = next_cell;
             }
@@ -206,3 +233,4 @@ impl fmt::Display for Universe {
         Ok(())
     }
 }
+
