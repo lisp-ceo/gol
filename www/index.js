@@ -10,6 +10,29 @@ const u = Universe.new();
 const w = u.width();
 const h = u.height();
 
+let animationId = null;
+
+const playPausebutton = document.getElementById("play-pause");
+
+const play = () => {
+    playPauseButton.textContent = "⏸";
+    renderLoop();
+}
+
+const pause = () => {
+  playPauseButton.textContent = "▶";
+  cancelAnimationFrame(animationId);
+  animationId = null;
+}
+
+playPauseButton.addEventListener("click", event => {
+    if (isPaused()) {
+        play();
+    } else {
+        pause();
+    }
+});
+
 const getIndex = (row, column) => {
     return row * w+ column;
 }
@@ -25,6 +48,12 @@ const renderLoop = () => {
 
     drawGrid();
     drawCells();
+
+    animationId = requestAnimationFrame(renderLoop);
+}
+
+const isPaused = () => {
+    return animationId === null;
 }
 
 const drawGrid = () => {
@@ -73,4 +102,5 @@ const drawCells = () => {
 
 drawGrid();
 drawCells();
-window.setInterval(renderLoop, 333)
+
+play();
