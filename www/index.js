@@ -6,13 +6,14 @@ const GRID_COLOUR = "#CCCCCC";
 const DEAD_COLOUR = "#FFFFFF";
 const ALIVE_COLOUR = "#000000";
 
-const u = Universe.new();
+window.logging = false;
+
+let u = Universe.new(window.logging);
 const w = u.width();
 const h = u.height();
 
 let animationId = null;
-
-const playPausebutton = document.getElementById("play-pause");
+const playPauseButton = document.getElementById("play-pause");
 
 const play = () => {
     playPauseButton.textContent = "⏸";
@@ -33,6 +34,23 @@ playPauseButton.addEventListener("click", event => {
     }
 });
 
+const newUniverseButton = document.getElementById("new-universe");
+const newUniverse = () => {
+    u = Universe.random(window.logging);
+}
+const worldMojis = [
+    "🌎",
+    "🌍",
+    "🌏"
+];
+let worldMojiNdx = 0;
+newUniverseButton.textContent = worldMojis[worldMojiNdx];
+newUniverseButton.addEventListener("click", event => {
+    worldMojiNdx = (worldMojiNdx + 1) % worldMojis.length
+    newUniverseButton.textContent = worldMojis[worldMojiNdx];
+    newUniverse();
+});
+
 const getIndex = (row, column) => {
     return row * w+ column;
 }
@@ -40,6 +58,22 @@ const getIndex = (row, column) => {
 const canvas = document.getElementById("canvas");
 canvas.height = (CELL_SIZE + 1) * h + 1;
 canvas.width = (CELL_SIZE + 1) * w + 1;
+canvas.addEventListener("click", event => {
+    const boundingRect = canvas.getBoundingClientRect();
+
+    const scaleX = canvas.width / boundingRect.width;
+    const scaleY = canvas.height / boundingRect.height;
+
+    const canvasLeft = (event.clientX - boundingRect.left) * scaleX;
+    const canvasTop = (event.clientY - boundingRect.top) * scaleY;
+
+    const row = Math.min(Math.floor(canvasTop / (CELL_SIZE + 1), h - 1));
+    const col = Math.min(Math.floor(canvasLeft / (CELL_SIZE + 1), w - 1));
+    u.toggle_cell(row, col);
+
+    drawGrid();
+    drawCells();
+});
 
 const ctx = canvas.getContext('2d');
 

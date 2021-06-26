@@ -25,8 +25,7 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 // Generate wasm
 #[wasm_bindgen]
-// Restrict each enum value to a byte for linear webassembly data allocation
-#[repr(u8)]
+#[repr(u8)] // Restrict each enum value to a byte for linear webassembly data allocation
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Display)]
 pub enum Cell {
     Dead = 0,
@@ -47,7 +46,7 @@ impl Cells {
     }
 
     // Constructs a new vector of cells that might be alive or dead.
-    fn new_random(width: u32, height: u32) -> Cells {
+    fn random(width: u32, height: u32) -> Cells {
         let v = (0..width * height)
             .map(|_| {
                 if js_sys::Math::random() < 0.5 {
@@ -78,14 +77,15 @@ pub struct Universe {
     width: u32,
     height: u32,
     cells: Cells,
+    logging: bool
 }
 
 // Methods generating wasm functions
 #[wasm_bindgen]
 impl Universe {
 
-    // Construct a new Universe.
-    pub fn new() -> Universe {
+    // Construct a new, empty Universe.
+    pub fn new(logging: bool) -> Universe {
         utils::set_panic_hook();
         let width = 64;
         let height = 64;
@@ -96,7 +96,29 @@ impl Universe {
             height,
             width,
             cells,
+            logging,
         }
+    }
+
+    // Construct a new, random Universe.
+    pub fn random(logging: bool) -> Universe {
+        utils::set_panic_hook();
+        let width = 64;
+        let height = 64;
+
+        let cells = Cells::random(width, height);
+
+        Universe{
+            height,
+            width,
+            cells,
+            logging,
+        }
+    }
+
+    pub fn toggle_cell(&mut self, row: u32, col: u32) {
+        let idx = self.get_index(row, col);
+        self.cells[idx].toggle();
     }
 
     // Serialize universe for presentation.
@@ -131,7 +153,6 @@ impl Universe {
         self.cells = Cells::new(self.width, height);
     }
 
-
     // Map linear array vector indices to 2D array.
     fn get_index(&self, row: u32, column: u32) -> usize {
         (row * self.width + column) as usize
@@ -165,13 +186,15 @@ impl Universe {
                 let cell = self.cells[idx];
                 let live_neighbours = self.live_neighbour_count(row, col);
 
-                log!(
-                    "cell[{}, {}] is initially {:?} and has {} live neighbours",
-                    row,
-                    col,
-                    cell,
-                    live_neighbours
-                );
+                if self.logging {
+                  log!(
+                      "cell[{}, {}] is initially {:?} and has {} live neighbours",
+                      row,
+                      col,
+                      cell,
+                      live_neighbours
+                  );
+                }
 
                 let next_cell = match (cell, live_neighbours) {
                     // Any live cell with fewer than 2 live neighours dies from underpopulation
@@ -186,10 +209,12 @@ impl Universe {
                     (otherwise, _) => otherwise,
                 };
 
-                log!(
+                if self.logging {
+                  log!(
                     "cell is now {}",
                     next_cell,
-                );
+                  );
+                }
 
                 next[idx] = next_cell;
             }
@@ -197,7 +222,7 @@ impl Universe {
 
         // Fork required to prevent use after borrow
         if (*self.cells.deref()) == next {
-            self.cells = Cells::new_random(self.width, self.height);
+            self.cells = Cells::random(self.width, self.height);
         } else {
             self.cells.0 = next;
         }
@@ -234,3 +259,11 @@ impl fmt::Display for Universe {
     }
 }
 
+impl Cell {
+    fn toggle(&mut self) {
+        *self = match *self {
+            Cell::Dead => Cell::Alive,
+            _ => Cell::Dead,
+        };
+    }
+}
